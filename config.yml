@@ -1,0 +1,27 @@
+trainer:
+  seed: 50
+  batch_size: 1
+  projects: ["KRIC"]
+
+finetune:
+  checkpoint: data_check
+
+loader:
+  num_workers: 0
+  train_ratio: 0.7
+  val_ratio: 0.1
+  test_ratio: 0.2
+  KRIC: {
+      root: "/root/.cache/huggingface/forget/datasets/TCGA-KRIC/",
+      processed_dir: "/root/.cache/huggingface/forget/datasets/TCGA-KRIC/processed/",
+      image_size: [512, 512], # patch size
+      n_tiles: 10, # Get the first n slices by score
+      target_level: 1, # Magnification level of the slice, 0 is the largest, 2 is the smallest
+      transforms: {
+          hf: 0.5, # Random vertical flip Probability
+          vf: 0.5, # Random horizontal flip Probability
+          rbc: 0.5, # # Random intensity scaling Probability
+          r90: 0.2, # Random 90 degree rotation Probability
+          norm: { "mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225] }, # Normalize or not
+        },
+    }
