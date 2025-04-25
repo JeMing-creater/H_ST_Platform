@@ -41,6 +41,8 @@ def load_tcga_clinical_data(tsv_path):
     # Make sure the case_submitter_id column exists
     if 'cases.submitter_id' not in df.columns:
         raise KeyError("Column 'cases.submitter_id' not found in the TSV file.")
+    elif 'demographic.days_to_death' not in df.columns or 'demographic.vital_status' not in df.columns:
+        raise KeyError("Column 'demographic.days_to_death' or 'demographic.vital_status' not found in the TSV file.")
     
     # Building a nested dictionary
     clinical_dict = {
@@ -72,7 +74,7 @@ def split_dict_by_ratio(original_dict, ratios=(0.7, 0.1, 0.2), seed=None):
 
     return dict_a, dict_b, dict_c
 
-def find_image_paths(root_dir, clinical_dict):
+def find_image_paths(root_dir, need_labels, clinical_dict):
     # Traverse all directories and files under root_dir
     for id_folder in os.listdir(root_dir):
         id_folder_path = os.path.join(root_dir, id_folder)
@@ -85,69 +87,35 @@ def find_image_paths(root_dir, clinical_dict):
                             break
     
     # no file path for this case id.
-    cases_to_remove = [case_id for case_id, data in clinical_dict.items() if 'image_path' not in data]
+    cases_to_remove = [case_id for case_id, data in clinical_dict.items() if ('image_path' not in data)]
+    cases_to_remove = []
+    for case_id, data in clinical_dict.items():
+        if 'image_path' not in data:
+            print(f"Warning: {case_id} has no file!")
+            cases_to_remove.append(case_id)
+        elif '--' in data['diagnoses.ajcc_pathologic_m'] and 'm' in need_labels:
+            print(f"Warning: {case_id} has no m label!")
+            cases_to_remove.append(case_id)
+        elif '--' in data['diagnoses.ajcc_pathologic_n'] and 'n' in need_labels:
+            print(f"Warning: {case_id} has no n label!")
+            cases_to_remove.append(case_id)
+        elif '--' in data['diagnoses.ajcc_pathologic_stage'] and 'stage' in need_labels:
+            print(f"Warning: {case_id} has no stage label!")
+            cases_to_remove.append(case_id)
+        elif '--' in data['diagnoses.ajcc_pathologic_t'] and 't' in need_labels:
+            print(f"Warning: {case_id} has no t label!")
+            cases_to_remove.append(case_id)
+        elif '--' in data['demographic.days_to_death'] and 'dd' in need_labels:
+            print(f"Warning: {case_id} has no days_to_death label!")
+            cases_to_remove.append(case_id)
+        elif '--' in data['demographic.vital_status'] and 'vs' in need_labels:
+            print(f"Warning: {case_id} has no vital status label!")
+            cases_to_remove.append(case_id)
+    
     for case_id in cases_to_remove:
-        print(f"Warning: {case_id} has no file!")
         del clinical_dict[case_id]
     
     return clinical_dict
-
-def calculate_target_level(slide, magnification):
-    base_mpp_x = float(slide.properties.get('openslide.mpp-x', 1.0))
-    desired_mpp = 10.0 / magnification  # Assuming 10 um/px at 1x magnification
-    target_level = min(slide.level_count - 1, int(math.log2(base_mpp_x / desired_mpp)))
-    return max(0, target_level)
-
-def detect_non_empty_patch(patch):
-    # Convert patch to grayscale
-    gray = cv2.cvtColor(np.array(patch), cv2.COLOR_RGB2GRAY)
-    
-    # Threshold the image to binary (black and white)
-    _, binary = cv2.threshold(gray, 10, 255, cv2.THRESH_BINARY)
-    
-    # Count non-zero pixels (non-empty pixels)
-    non_zero_pixels = cv2.countNonZero(binary)
-    
-    return non_zero_pixels > 0
-
-def encode_label1(label):
-    label_map = {'M0': 0, 'M1': 1}
-    encoded_label = torch.zeros(len(label_map.keys()))
-    if label in label_map:
-        encoded_label[label_map[label]] = 1
-    return encoded_label
-
-def encode_label2(label):
-    label_map = {'N0': 0, 'N1': 1, 'NX': 2}
-    encoded_label = torch.zeros(len(label_map.keys()))
-    if label in label_map:
-        encoded_label[label_map[label]] = 1
-    return encoded_label
-
-def encode_label3(label):
-    label_map = {'Stage I': 0, 'Stage II': 1, 'Stage III': 2, 'Stage IV': 3}
-    encoded_label = torch.zeros(len(label_map.keys()))
-    if label in label_map:
-        encoded_label[label_map[label]] = 1
-    return encoded_label
-
-def encode_label4(label):
-    label_map = {'T1': 0, 'T1a': 1, 'T1b': 2, 'T2': 3, 'T2a': 4, 'T2b': 5, 'T3': 6, 'T3a': 7, 'T3b': 8}
-    encoded_label = torch.zeros(len(label_map.keys()))
-    if label in label_map:
-        encoded_label[label_map[label]] = 1
-    return encoded_label
-
-def apply_mask_image(img: PIL.Image.Image, mask: np.ndarray) -> PIL.Image.Image:
-    img_arr = np.array(img)
-
-    if mask.ndim == 2 and img_arr.ndim != 2:
-        n_channels = img_arr.shape[2]
-        for channel_i in range(n_channels):
-            img_arr[~mask] = [255, 255, 255]  # The position of mask 0 is converted to 255
-    else:
-        img_arr[~mask] = [255, 255, 255]
-    return np_to_pil(img_arr)
 
 class MyMask(BinaryMask):
     def __init__(self, *filters: Iterable[Filter]) -> None:
@@ -168,6 +136,18 @@ class MyMask(BinaryMask):
 class BluePenFilter(ImageFilter):
     def __call__(self, img: PIL.Image.Image) -> PIL.Image.Image:
         return self.blue_pen_filter(img)
+
+    def apply_mask_image(self, img: PIL.Image.Image, mask: np.ndarray) -> PIL.Image.Image:
+        img_arr = np.array(img)
+
+        if mask.ndim == 2 and img_arr.ndim != 2:
+            n_channels = img_arr.shape[2]
+            for channel_i in range(n_channels):
+                img_arr[~mask] = [255, 255, 255]  # The position of mask 0 is converted to 255
+        else:
+            img_arr[~mask] = [255, 255, 255]
+        return np_to_pil(img_arr)
+
 
     def blue_pen_filter(self, img: PIL.Image.Image) -> PIL.Image.Image:
         """Filter out blue pen marks from a diagnostic slide.
@@ -203,7 +183,7 @@ class BluePenFilter(ImageFilter):
         blue_pen_filter_img = reduce(
             (lambda x, y: x & y), [self.blue_filter(img, **param) for param in parameters]
         )
-        return apply_mask_image(img, blue_pen_filter_img)
+        return self.apply_mask_image(img, blue_pen_filter_img)
 
     def blue_filter(self,
                     img: PIL.Image.Image, red_thresh: int, green_thresh: int, blue_thresh: int
@@ -242,7 +222,6 @@ class BluePenFilter(ImageFilter):
         blue = img_arr[:, :, 2] < blue_thresh
         return red | green | blue
 
-
 def get_transforms(config) -> Tuple[
     A.Compose, A.Compose]:
     add_transforms = []
@@ -266,19 +245,27 @@ def get_transforms(config) -> Tuple[
     ])
     return train_transform, val_transform
  
-
 class TCGAImageDataset(Dataset):
     def __init__(self, config, clinical_dict, transforms):
         self.data = []
+        self.clinical_dict = clinical_dict
         self.transforms = transforms
         self.n_tiles = config["n_tiles"]
         self.image_size = config["image_size"]
         self.processed_dir = config["processed_dir"]
+        self.tissue_percent = config["tissue_percent"]
         self.check_processed_dir(self.processed_dir)
         self.target_level = config["target_level"]
+        self.norm_max, self.norm_min = -1, 99999999
         for case_id, info in clinical_dict.items():
-            if 'image_path' in info and 'diagnoses.ajcc_pathologic_t' in info:
-                self.data.append((info['image_path'], info['diagnoses.ajcc_pathologic_m'], info['diagnoses.ajcc_pathologic_n'], info['diagnoses.ajcc_pathologic_stage'], info['diagnoses.ajcc_pathologic_t']))
+            if 'image_path' in info:
+                self.data.append((info['image_path'], 
+                                  info['diagnoses.ajcc_pathologic_m'], 
+                                  info['diagnoses.ajcc_pathologic_n'], 
+                                  info['diagnoses.ajcc_pathologic_stage'], 
+                                  info['diagnoses.ajcc_pathologic_t'],
+                                  info['demographic.days_to_death'],
+                                  info['demographic.vital_status']))
     
     def check_processed_dir(self, dir, clean=False):
         if not os.path.exists(dir):
@@ -315,6 +302,32 @@ class TCGAImageDataset(Dataset):
             return False
     
         return True
+    
+    def get_max_min_dd(self, clinical_dict):
+        max_dd = -1
+        min_dd = 99999999
+        for case_id, info in clinical_dict.items():
+            if 'image_path' in info:
+                if info['demographic.days_to_death'] != '--':
+                    dd = int(info['demographic.days_to_death'])
+                    if dd > max_dd:
+                        max_dd = dd
+                    if dd < min_dd:
+                        min_dd = dd
+        return max_dd, min_dd
+    
+    def norm_dd_data(self, dd):
+        if self.norm_max == -1 and self.norm_min == 99999999:
+            for _, info in self.clinical_dict.items():
+                if 'image_path' in info:
+                    if info['demographic.days_to_death'] != '--':
+                        dd = int(info['demographic.days_to_death'])
+                        if dd > self.norm_max:
+                            self.norm_max = dd
+                        if dd < self.norm_min:
+                            self.norm_min = dd
+        norm_dd = (dd - self.norm_min) / (self.norm_max - self.norm_min)
+        return norm_dd
 
     def extract_patches_from_image(self, image_path):
         patch_size   = self.image_size
@@ -322,7 +335,6 @@ class TCGAImageDataset(Dataset):
         id = image_path.split('/')[-2]
         processed_path = self.processed_dir + '/' + id + '/'
         self.check_processed_dir(processed_path, True)
-
 
         # TODO: Load WSI slices, use use_largeimage mode, but use_largeimage mode can not be used in the current version of histolab.
         tcga_slide = Slide(image_path, processed_path=processed_path, use_largeimage=False, )
@@ -344,7 +356,7 @@ class TCGAImageDataset(Dataset):
             n_tiles=self.n_tiles,
             level=target_level,
             check_tissue=True,
-            tissue_percent=80.0,
+            tissue_percent=self.tissue_percent,
             pixel_overlap=0,  # default
             prefix="scored/",  # save tiles in the "scored" subdirectory of slide's processed_path
             suffix=".png"  # default
@@ -364,6 +376,42 @@ class TCGAImageDataset(Dataset):
 
         scored_tiles_extractor.extract(tcga_slide, report_path=SUMMARY_PATH,  extraction_mask=extraction_mask)
     
+    def encode_label_m(self, label):
+        label_map = {'M0': 0, 'M1': 1}
+        encoded_label = torch.zeros(len(label_map.keys()))
+        if label in label_map:
+            encoded_label[label_map[label]] = 1
+        return encoded_label
+
+    def encode_label_n(self, label):
+        label_map = {'N0': 0, 'N1': 1, 'NX': 2}
+        encoded_label = torch.zeros(len(label_map.keys()))
+        if label in label_map:
+            encoded_label[label_map[label]] = 1
+        return encoded_label
+
+    def encode_label_stage(self, label):
+        label_map = {'Stage I': 0, 'Stage II': 1, 'Stage III': 2, 'Stage IV': 3}
+        encoded_label = torch.zeros(len(label_map.keys()))
+        if label in label_map:
+            encoded_label[label_map[label]] = 1
+        return encoded_label
+
+    def encode_label_t(self, label):
+        label_map = {'T1': 0, 'T1a': 1, 'T1b': 2, 'T2': 3, 'T2a': 4, 'T2b': 5, 'T3': 6, 'T3a': 7, 'T3b': 8}
+        encoded_label = torch.zeros(len(label_map.keys()))
+        if label in label_map:
+            encoded_label[label_map[label]] = 1
+        return encoded_label
+
+    def encode_label_dd(self, label):
+        if label == '--':
+            return torch.tensor(0).unsqueeze(0)
+        else:
+            dd = int(label)
+            norm_dd = self.norm_dd_data(dd)
+            return torch.tensor(norm_dd).unsqueeze(0)
+
     def get_slice_image(self, image_path):
         id = image_path.split('/')[-2]
         processed_path = self.processed_dir + '/' + id + '/'
@@ -371,6 +419,7 @@ class TCGAImageDataset(Dataset):
         # Check is the processed path existed or it has enough slice images.
         need_slice = self.check_slicepath_and_images(processed_path)
         if need_slice != True:
+            print(f"Extracting patches from {image_path}...")
             self.extract_patches_from_image(image_path)
 
         # Load image as tensor
@@ -397,44 +446,52 @@ class TCGAImageDataset(Dataset):
         
         return images_tensor
             
-        
-
     def __len__(self):
         return len(self.data)
     
     def __getitem__(self, index):
-        image_path, label1, label2, label3, label4 = self.data[index]
-        
+        image_path, m_label, n_label, stage_label, t_label, dd_label, vs_label = self.data[index]
+        # Load image
         image_tensor = self.get_slice_image(image_path)
-        
-        label1_tensor = encode_label1(label1)
-        label2_tensor = encode_label2(label2)
-        label3_tensor = encode_label3(label3)
-        label4_tensor = encode_label4(label4)
-        return image_tensor, label1_tensor, label2_tensor, label3_tensor, label4_tensor
+        # Encode label
+        m_label_tensor = self.encode_label_m(m_label)
+        n_label_tensor = self.encode_label_n(n_label)
+        stage_label_tensor = self.encode_label_stage(stage_label)
+        t_label_tensor = self.encode_label_t(t_label)
+        dd_label = self.encode_label_dd(dd_label)
+        vs_label = torch.tensor(1 if vs_label == 'Dead' else 0).unsqueeze(0)
+
+        return {
+            'image': image_tensor,
+            'm_label': m_label_tensor,
+            'n_label': n_label_tensor,
+            'stage_label': stage_label_tensor,
+            't_label': t_label_tensor,
+            'dd_label': dd_label,
+            'vs_label': vs_label
+        }
 
 def get_TCGA_dataloader(config):
     # TODO: introduce more TCGA projects
-    for project in config.trainer.projects:
-        if project == 'KRIC':
-            project_config = config.loader.KRIC
+    if config.trainer.projects == 'KRIC':
+        project_config = config.loader.KRIC
         
-        root_dir = project_config["root"]
-        # load tsv
-        tsv_path = root_dir + '/' + 'clinical.tsv'
-        clinical_dict = load_tcga_clinical_data(tsv_path)
-        # get image path
-        clinical_dict = find_image_paths(root_dir, clinical_dict)
-        # split train, val, test data
-        train_data, val_data, test_data = split_dict_by_ratio(clinical_dict, 
-                                                              ratios=(config.loader.train_ratio, config.loader.val_ratio, config.loader.test_ratio), seed=config.trainer.seed)
-        
-        # get transforms
-        train_transform, val_transform = get_transforms(project_config.transforms)
+    root_dir = project_config["root"]
+    # load tsv
+    tsv_path = root_dir + '/' + 'clinical.tsv'
+    clinical_dict = load_tcga_clinical_data(tsv_path)
+    # get image path
+    clinical_dict = find_image_paths(root_dir, project_config["need_labels"], clinical_dict)
+    # split train, val, test data
+    train_data, val_data, test_data = split_dict_by_ratio(clinical_dict, 
+                                                            ratios=(config.loader.train_ratio, config.loader.val_ratio, config.loader.test_ratio), seed=config.trainer.seed)
+    
+    # get transforms
+    train_transform, val_transform = get_transforms(project_config.transforms)
 
-        train_data = TCGAImageDataset(project_config, train_data, train_transform)
-        val_data = TCGAImageDataset(project_config, val_data, val_transform)
-        test_data = TCGAImageDataset(project_config, test_data, val_transform)
+    train_data = TCGAImageDataset(project_config, train_data, train_transform)
+    val_data = TCGAImageDataset(project_config, val_data, val_transform)
+    test_data = TCGAImageDataset(project_config, test_data, val_transform)
     
     train_loader = monai.data.DataLoader(train_data, num_workers=config.loader.num_workers,
                                          batch_size=config.trainer.batch_size, shuffle=True)
@@ -453,12 +510,16 @@ if __name__ == '__main__':
     start_time = time.time()
     
     for i, batch in enumerate(train_loader):
-        print(batch[0].shape)
-        print(batch[1].shape)
-        print(batch[2].shape)
-        print(batch[3].shape)
-        print(batch[4].shape)
-    
+        print(batch['image'].shape)
+        print(batch['m_label'].shape)
+        print(batch['n_label'].shape)
+        print(batch['stage_label'].shape)
+        print(batch['dd_label'].shape)
+        print(batch['dd_label'])
+        print(batch['vs_label'].shape)
+        print(batch['vs_label'])
+
+
     end_time = time.time()
     elapsed_time_seconds = end_time - start_time  # Calculate the elapsed time in seconds
     elapsed_time_minutes = elapsed_time_seconds / 60  # Convert to minutes

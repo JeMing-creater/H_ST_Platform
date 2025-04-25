@@ -36,25 +36,28 @@ if __name__ == "__main__":
 
     # check and split in first time
     for i, batch in enumerate(train_loader):
-        print(batch[0].shape)
-        print(batch[1].shape)
-        print(batch[2].shape)
-        print(batch[3].shape)
-        print(batch[4].shape)
+        print(batch['image'].shape)
+        print(batch['m_label'].shape)
+        print(batch['n_label'].shape)
+        print(batch['stage_label'].shape)
+        print(batch['dd_label'].shape)
+        print(batch['vs_label'].shape)
     
     for i, batch in enumerate(val_loader):
-        print(batch[0].shape)
-        print(batch[1].shape)
-        print(batch[2].shape)
-        print(batch[3].shape)
-        print(batch[4].shape)
+        print(batch['image'].shape)
+        print(batch['m_label'].shape)
+        print(batch['n_label'].shape)
+        print(batch['stage_label'].shape)
+        print(batch['dd_label'].shape)
+        print(batch['vs_label'].shape)
 
     for i, batch in enumerate(test_loader):
-        print(batch[0].shape)
-        print(batch[1].shape)
-        print(batch[2].shape)
-        print(batch[3].shape)
-        print(batch[4].shape)
+        print(batch['image'].shape)
+        print(batch['m_label'].shape)
+        print(batch['n_label'].shape)
+        print(batch['stage_label'].shape)
+        print(batch['dd_label'].shape)
+        print(batch['vs_label'].shape)
         
 
 
