@@ -16,3 +16,4 @@ pandas
 histolab
 scikit-learn
 large-image
+scanpy

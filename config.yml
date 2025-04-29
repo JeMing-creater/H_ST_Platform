@@ -13,19 +13,23 @@ loader:
   val_ratio: 0.1
   test_ratio: 0.2
   KRIC: {
-      root: "/root/.cache/huggingface/forget/datasets/TCGA-KRIC/",
-      processed_dir: "/root/.cache/huggingface/forget/datasets/TCGA-KRIC/processed/",
-      need_labels: ['m','n','stage','t','dd','vs'], # Which labels are needed 
-      image_size: [512, 512], # Patch size
-      tissue_percent: 50.0, # Indicates the minimum percentage of pixels in each tile that are tissue areas to keep the tile. If it is set too high, many tiles will be excluded.
-      n_tiles: 10, # Get the first n slices by score
-      target_level: 1, # Magnification level of the slice, 0 is the largest, 2 is the smallest
-      magnification: 10, # Magnification of the image, choose from [40, 20, 10, 5]
-      transforms: {
-          hf: 0.5, # Random vertical flip Probability
-          vf: 0.5, # Random horizontal flip Probability
-          rbc: 0.5, # # Random intensity scaling Probability
-          r90: 0.2, # Random 90 degree rotation Probability
-          norm: { "mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225] }, # Normalize or not
-        },
+    root: "/root/.cache/huggingface/forget/datasets/TCGA-KRIC/",
+    processed_dir: "/root/.cache/huggingface/forget/datasets/TCGA-KRIC/processed/",
+    need_labels: ['m','n','stage','t','dd','vs'], # Which labels are needed 
+    image_size: [512, 512], # Patch size
+    tissue_percent: 50.0, # Indicates the minimum percentage of pixels in each tile that are tissue areas to keep the tile. If it is set too high, many tiles will be excluded.
+    n_tiles: 10, # Get the first n slices by score
+    target_level: 1, # Magnification level of the slice, 0 is the largest, 2 is the smallest
+    magnification: 10, # Magnification of the image, choose from [40, 20, 10, 5]
+    transforms: {
+        hf: 0.5, # Random vertical flip Probability
+        vf: 0.5, # Random horizontal flip Probability
+        rbc: 0.5, # # Random intensity scaling Probability
+        r90: 0.2, # Random 90 degree rotation Probability
+        norm: { "mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225] }, # Normalize or not
+      },
     }
+  tenx_HT: {
+    root: "/root/.cache/huggingface/forget/datasets/10x_Human_Tonsil/",
+
+  }
