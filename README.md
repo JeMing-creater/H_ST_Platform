@@ -8,19 +8,15 @@ User needs to configure the application environment through the following code:
 ```
 pip install -r requirements/requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
+User need to use CLAM package to help split WSI image.
+```
+git clone https://github.com/mahmoodlab/CLAM.git
+```
+and pip needed tool package for it.
+```
+pip install git+https://github.com/oval-group/smooth-topk.git 
+```
 
-<font color='red'> **Notion** </font>
-
-You may meet some errors when you use **large-image** package. Those errors can be fixed by introduce those code:
-```
-conda install large-image[all] girder-large-image-annotation[tasks] 
-```
-You may meet an install error like that: ```Could not find gdal-config. Make sure you have installed the GDAL native library and development headers.```
-This time, you need to install gdal first, and need to install by conda. 
-```
-conda install gdal
-```
-And then you can continue download packages and install. 
 
 ## Control
 All training, verification, visualization and data loading operations are controled by follow file:

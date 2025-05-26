@@ -13,7 +13,8 @@ from easydict import EasyDict
 from datetime import datetime
 from accelerate import Accelerator
 
-from dataloader.TCGA_dataloader import get_TCGA_dataloader
+# from dataset.TCGA_dataloader import get_TCGA_dataloader
+from dataset.TCGA_dataloader_clam import get_TCGA_data
 from src import utils
 
 
@@ -32,33 +33,69 @@ if __name__ == "__main__":
     accelerator.print(objstr(config))
 
     # Load data
-    train_loader, val_loader, test_loader = get_TCGA_dataloader(config)
+    accelerator.print("Loading data...")
+    
+    train_loader, val_loader, test_loader = get_TCGA_data(config)  
 
-    # check and split in first time
     for i, batch in enumerate(train_loader):
         print(batch['image'].shape)
+        # print(batch['coords'].shape)
         print(batch['m_label'].shape)
         print(batch['n_label'].shape)
         print(batch['stage_label'].shape)
         print(batch['dd_label'].shape)
+        print(batch['dd_label'])
         print(batch['vs_label'].shape)
-    
+        print(batch['vs_label'])
+        
     for i, batch in enumerate(val_loader):
         print(batch['image'].shape)
+        # print(batch['coords'].shape)
         print(batch['m_label'].shape)
         print(batch['n_label'].shape)
         print(batch['stage_label'].shape)
         print(batch['dd_label'].shape)
+        print(batch['dd_label'])
         print(batch['vs_label'].shape)
+        print(batch['vs_label'])
 
     for i, batch in enumerate(test_loader):
         print(batch['image'].shape)
+        # print(batch['coords'].shape)
         print(batch['m_label'].shape)
         print(batch['n_label'].shape)
         print(batch['stage_label'].shape)
         print(batch['dd_label'].shape)
+        print(batch['dd_label'])
         print(batch['vs_label'].shape)
-        
+        print(batch['vs_label'])
+
+    # train_loader, val_loader, test_loader = get_TCGA_dataloader(config)
+
+    # # check and split in first time
+    # for i, batch in enumerate(train_loader):
+    #     print(batch['image'].shape)
+    #     print(batch['m_label'].shape)
+    #     print(batch['n_label'].shape)
+    #     print(batch['stage_label'].shape)
+    #     print(batch['dd_label'].shape)
+    #     print(batch['vs_label'].shape)
+    
+    # for i, batch in enumerate(val_loader):
+    #     print(batch['image'].shape)
+    #     print(batch['m_label'].shape)
+    #     print(batch['n_label'].shape)
+    #     print(batch['stage_label'].shape)
+    #     print(batch['dd_label'].shape)
+    #     print(batch['vs_label'].shape)
+
+    # for i, batch in enumerate(test_loader):
+    #     print(batch['image'].shape)
+    #     print(batch['m_label'].shape)
+    #     print(batch['n_label'].shape)
+    #     print(batch['stage_label'].shape)
+    #     print(batch['dd_label'].shape)
+    #     print(batch['vs_label'].shape)
         
 
 
