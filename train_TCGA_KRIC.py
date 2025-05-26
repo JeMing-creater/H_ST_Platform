@@ -59,6 +59,7 @@ if __name__ == "__main__":
         print(batch['dd_label'].shape)
         print(batch['vs_label'].shape)
         
+        
 
 
 
