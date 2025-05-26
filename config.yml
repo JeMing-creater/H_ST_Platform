@@ -1,6 +1,6 @@
 trainer:
   seed: 50
-  batch_size: 1
+  batch_size: 2
   projects: "KRIC"
   # projects: ["KRIC"]
 
@@ -13,8 +13,25 @@ loader:
   val_ratio: 0.1
   test_ratio: 0.2
   KRIC: {
+    shutil: False, # Whether to split data again
     root: "/root/.cache/huggingface/forget/datasets/TCGA-KRIC/",
     processed_dir: "/root/.cache/huggingface/forget/datasets/TCGA-KRIC/processed/",
+    clam: {
+      processed_path: "/root/.cache/huggingface/forget/datasets/TCGA-KRIC/processed_clam/",
+      patch_size: 448,
+      step_size: 448,
+      patch_level: 1,
+      seg: True,
+      stitch: True,
+      patch: True,
+      process_list: None,
+      model_name: 'resnet50_trunc', # 'resnet50_trunc', 'uni_v1', 'conch_v1'
+      target_patch_size: 224,
+      device: 'cuda:0',
+      no_auto_skip: False,
+      batch_size: 256, # fearure extraction batch size
+      fixed_patch_size: [1024, 1024], # fixed patch size
+    },
     need_labels: ['m','n','stage','t','dd','vs'], # Which labels are needed 
     image_size: [512, 512], # Patch size
     tissue_percent: 50.0, # Indicates the minimum percentage of pixels in each tile that are tissue areas to keep the tile. If it is set too high, many tiles will be excluded.
