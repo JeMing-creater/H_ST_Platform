@@ -4,7 +4,6 @@ import cv2
 import PIL
 import time
 import math
-import yaml
 import monai
 import torch
 import shutil
@@ -18,7 +17,6 @@ import torch.nn.functional as F
 from albumentations.pytorch import ToTensorV2
 from typing import Callable, Optional, Dict, List, Any
 from monai.data import Dataset
-from easydict import EasyDict
 from functools import lru_cache, reduce
 from typing import Iterable, List, Union
 from torch.utils.data import Dataset, DataLoader
@@ -336,6 +334,16 @@ class PatchH5Dataset(Dataset):
             # do not load the h5 file if it does not contain the index in clinical_dict
             for key in clinical_dict.keys():
                 if key in fname:
+                    if clinical_dict[key]['demographic.days_to_death'] != '--':
+                        days_to_death = clinical_dict[key]['demographic.days_to_death'] 
+                        if days_to_death == '--':
+                            continue
+                        else:
+                            days_to_death = int(days_to_death)
+                        if days_to_death > self.norm_max:
+                            self.norm_max = days_to_death
+                        if days_to_death < self.norm_min:
+                            self.norm_min = days_to_death
                     self.h5_detail.append((
                         os.path.join(feature_dir, fname),
                         clinical_dict[key]['diagnoses.ajcc_pathologic_m'], 
@@ -373,27 +381,14 @@ class PatchH5Dataset(Dataset):
         if label in label_map:
             encoded_label[label_map[label]] = 1
         return encoded_label
-
-    def norm_dd_data(self, dd):
-        if self.norm_max == -1 and self.norm_min == 99999999:
-            for _, info in self.clinical_dict.items():
-                if 'image_path' in info:
-                    if info['demographic.days_to_death'] != '--':
-                        dd = int(info['demographic.days_to_death'])
-                        if dd > self.norm_max:
-                            self.norm_max = dd
-                        if dd < self.norm_min:
-                            self.norm_min = dd
-        norm_dd = (dd - self.norm_min) / (self.norm_max - self.norm_min)
-        return norm_dd
     
     def encode_label_dd(self, label):
-        if label == '--':
-            return torch.tensor(0).unsqueeze(0)
-        else:
-            dd = int(label)
-            norm_dd = self.norm_dd_data(dd)
-            return torch.tensor(norm_dd).unsqueeze(0)
+        # if label == '--':
+        #     return torch.tensor(0).unsqueeze(0)
+        # else:
+        dd = int(label)
+        norm_dd = (dd - self.norm_min) / (self.norm_max - self.norm_min)
+        return torch.tensor(norm_dd).unsqueeze(0)
     
 
     def __len__(self) -> int:
@@ -410,7 +405,10 @@ class PatchH5Dataset(Dataset):
         # Resize the features and coordinates
         features = features.unsqueeze(0).unsqueeze(0)
         features = F.interpolate(features, size=(self.fixed_patch_size[0], self.fixed_patch_size[1]), mode='bilinear', align_corners=False)
-        features = features.squeeze(0).squeeze(0)
+        # features = features.squeeze(0).squeeze(0)
+        features = features.squeeze(0)
+
+
         # with h5py.File(h5_path,'r') as hdf5_file:
         #     features = hdf5_file['features'][:]
         #     coords = hdf5_file['coords'][:]
@@ -500,7 +498,15 @@ def get_TCGA_data(config):
 
 
 if __name__ == '__main__':
-    config = EasyDict(yaml.load(open('/workspace/Jeming/Pathology/config.yml', 'r', encoding="utf-8"), Loader=yaml.FullLoader))
+    import os
+    import yaml
+    from easydict import EasyDict
+    # change to outside directory
+    current_path = os.path.dirname(os.path.abspath(__file__))
+    parent_path = os.path.dirname(current_path)
+    os.chdir(parent_path)
+
+    config = EasyDict(yaml.load(open('config.yml', 'r', encoding="utf-8"), Loader=yaml.FullLoader))
 
     train_loader, val_loader, test_loader = get_TCGA_data(config)  
 
@@ -514,5 +520,3 @@ if __name__ == '__main__':
         print(batch['dd_label'])
         print(batch['vs_label'].shape)
         print(batch['vs_label'])
-
-    

@@ -7,6 +7,7 @@ tensorboard
 easydict
 SimpleITK
 monai
+tqdm
 nibabel
 pyyaml
 openslide-python
@@ -14,5 +15,8 @@ opencv-python
 openpyxl
 pandas
 histolab
+pycox
+lifelines
+scikit-survival
 scikit-learn
 scanpy
