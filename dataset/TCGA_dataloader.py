@@ -259,6 +259,11 @@ class TCGAImageDataset(Dataset):
         self.norm_max, self.norm_min = -1, 99999999
         for case_id, info in clinical_dict.items():
             if 'image_path' in info:
+                days_to_death = int(info['demographic.days_to_death']) 
+                if days_to_death > self.norm_max:
+                    self.norm_max = days_to_death
+                if days_to_death < self.norm_min:
+                    self.norm_min = days_to_death
                 self.data.append((info['image_path'], 
                                   info['diagnoses.ajcc_pathologic_m'], 
                                   info['diagnoses.ajcc_pathologic_n'], 
@@ -303,31 +308,7 @@ class TCGAImageDataset(Dataset):
     
         return True
     
-    def get_max_min_dd(self, clinical_dict):
-        max_dd = -1
-        min_dd = 99999999
-        for case_id, info in clinical_dict.items():
-            if 'image_path' in info:
-                if info['demographic.days_to_death'] != '--':
-                    dd = int(info['demographic.days_to_death'])
-                    if dd > max_dd:
-                        max_dd = dd
-                    if dd < min_dd:
-                        min_dd = dd
-        return max_dd, min_dd
     
-    def norm_dd_data(self, dd):
-        if self.norm_max == -1 and self.norm_min == 99999999:
-            for _, info in self.clinical_dict.items():
-                if 'image_path' in info:
-                    if info['demographic.days_to_death'] != '--':
-                        dd = int(info['demographic.days_to_death'])
-                        if dd > self.norm_max:
-                            self.norm_max = dd
-                        if dd < self.norm_min:
-                            self.norm_min = dd
-        norm_dd = (dd - self.norm_min) / (self.norm_max - self.norm_min)
-        return norm_dd
 
     def extract_patches_from_image(self, image_path):
         patch_size   = self.image_size
@@ -409,7 +390,7 @@ class TCGAImageDataset(Dataset):
             return torch.tensor(0).unsqueeze(0)
         else:
             dd = int(label)
-            norm_dd = self.norm_dd_data(dd)
+            norm_dd = (dd - self.norm_min) / (self.norm_max - self.norm_min)
             return torch.tensor(norm_dd).unsqueeze(0)
 
     def get_slice_image(self, image_path):
