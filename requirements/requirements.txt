@@ -1,6 +1,6 @@
-timm==0.4.12
+timm==0.9.8
 objprint==0.2.3
-accelerate==0.23.0
+accelerate==0.18.0
 torch==2.2.0
 albumentations
 tensorboard
