@@ -33,9 +33,9 @@ from histolab.filters.compositions import FiltersComposition
 import histolab.filters.morphological_filters as mof
 from histolab.filters.image_filters import ImageFilter, Filter, Compose
 from histolab.masks import BiggestTissueBoxMask, TissueMask, BinaryMask
-from dataset.clam import create_patches_fp, extract_features_fp
-from dataset.clam.dataset_modules.dataset_h5 import Dataset_All_Bags, Whole_Slide_Bag_FP
-from dataset.clam.models import get_encoder
+from dataset.CLAM import create_patches_fp, extract_features_fp
+from dataset.CLAM.dataset_modules.dataset_h5 import Dataset_All_Bags, Whole_Slide_Bag_FP
+from dataset.CLAM.models import get_encoder
 
 import os
 import h5py
