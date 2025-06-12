@@ -4,7 +4,6 @@ import sys
 from collections import OrderedDict
 from copy import deepcopy
 import math
-from mim import train
 import numpy as np
 import torch
 from accelerate import Accelerator
